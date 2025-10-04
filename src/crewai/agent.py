@@ -117,6 +117,10 @@ class Agent(BaseAgent):
         default=True,
         description="Keep messages under the context window size by summarizing content.",
     )
+    force_single_tool: bool = Field(
+        default=False,
+        description="Require the agent to execute its single available tool before finishing.",
+    )
     max_retry_limit: int = Field(
         default=2,
         description="Maximum number of retries for an agent to execute a task when an error occurs.",
@@ -593,6 +597,11 @@ class Agent(BaseAgent):
                 self._rpm_controller.check_or_wait if self._rpm_controller else None
             ),
             callbacks=[TokenCalcHandler(self._token_process)],
+            force_single_tool=(
+                task.force_single_tool
+                if task and task.force_single_tool is not None
+                else self.force_single_tool
+            ),
         )
 
     def get_delegation_tools(self, agents: list[BaseAgent]):

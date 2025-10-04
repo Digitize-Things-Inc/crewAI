@@ -67,6 +67,7 @@ class Task(BaseModel):
         output_pydantic: Pydantic model for task output.
         security_config: Security configuration including fingerprinting.
         tools: List of tools/resources limited for task execution.
+        force_single_tool: Optional flag requiring the agent to call its single tool before finishing.
         allow_crewai_trigger_context: Optional flag to control crewai_trigger_payload injection.
                               None (default): Auto-inject for first task only.
                               True: Always inject trigger payload for this task.
@@ -119,12 +120,16 @@ class Task(BaseModel):
         description="Whether to create the directory for output_file if it doesn't exist.",
         default=True,
     )
-    output: TaskOutput | None = Field(
+        output: TaskOutput | None = Field(
         description="Task output, it's final result after being executed", default=None
     )
     tools: list[BaseTool] | None = Field(
         default_factory=list,
         description="Tools the agent is limited to use for this task.",
+    )
+    force_single_tool: bool | None = Field(
+        default=None,
+        description="Force the assigned agent to call its single tool before finishing.",
     )
     security_config: SecurityConfig = Field(
         default_factory=SecurityConfig,
