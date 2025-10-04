@@ -49,6 +49,7 @@ crew = Crew(
 | **Name** _(optional)_            | `name`            | `Optional[str]`               | A name identifier for the task.                                                                                      |
 | **Agent** _(optional)_           | `agent`           | `Optional[BaseAgent]`         | The agent responsible for executing the task.                                                                        |
 | **Tools** _(optional)_           | `tools`           | `List[BaseTool]`              | The tools/resources the agent is limited to use for this task.                                                       |
+| **Force Single Tool** _(optional)_ | `force_single_tool` | `Optional[bool]`           | Require the assigned agent to invoke its lone tool before providing a final answer. Inherits the agent setting when omitted. |
 | **Context** _(optional)_         | `context`         | `Optional[List["Task"]]`      | Other tasks whose outputs will be used as context for this task.                                                     |
 | **Async Execution** _(optional)_ | `async_execution` | `Optional[bool]`              | Whether the task should be executed asynchronously. Defaults to False.                                               |
 | **Human Input** _(optional)_     | `human_input`     | `Optional[bool]`              | Whether the task should have a human review the final answer of the agent. Defaults to False.                        |

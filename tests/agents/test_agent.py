@@ -2214,6 +2214,59 @@ def test_crew_agent_executor_litellm_auth_error():
     assert exc_info.value.model == "gpt-4"
 
 
+def test_force_single_tool_executes_before_final_answer():
+    """Ensure the executor forces a single tool run when configured."""
+
+    from crewai.tools import BaseTool
+
+    call_counter = {"count": 0}
+
+    class DummyTool(BaseTool):
+        name: str = "dummy_tool"
+        description: str = "Return a canned observation."
+
+        def _run(self) -> str:  # type: ignore[override]
+            call_counter["count"] += 1
+            return "dummy observation"
+
+    agent = Agent(
+        role="Tester",
+        goal="Verify tool forcing",
+        backstory="Ensures tools run before finishing",
+        llm=LLM(model="gpt-4"),
+        tools=[DummyTool()],
+    )
+
+    task = Task(
+        description="Respond only after using the tool.",
+        expected_output="Final answer after tool use.",
+        agent=agent,
+        force_single_tool=True,
+    )
+
+    premature_final = "Thought: I already know the answer\nFinal Answer: Early output"
+    final_response = "Thought: I have the observation\nFinal Answer: Final output"
+
+    with (
+        patch.object(agent.llm, "call", side_effect=[premature_final, final_response])
+        as mock_llm_call,
+        patch("crewai.events.event_bus.crewai_event_bus.emit"),
+    ):
+        result = agent.execute_task(task)
+
+    assert result == "Final output"
+    assert mock_llm_call.call_count == 2
+    assert call_counter["count"] == 1
+    assert agent.agent_executor.force_single_tool is True
+
+    observation_messages = [
+        message["content"]
+        for message in agent.agent_executor.messages
+        if "Observation: dummy observation" in message["content"]
+    ]
+    assert observation_messages, "Tool observation should appear in the transcript"
+
+
 def test_litellm_anthropic_error_handling():
     """Test that AnthropicError from LiteLLM is handled correctly and not retried."""
     from litellm.llms.anthropic.common_utils import AnthropicError

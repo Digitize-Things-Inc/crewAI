@@ -68,6 +68,7 @@ class CrewAgentExecutor(CrewAgentExecutorMixin):
         respect_context_window: bool = False,
         request_within_rpm_limit: Callable[[], bool] | None = None,
         callbacks: list[Any] | None = None,
+        force_single_tool: bool = False,
     ) -> None:
         """Initialize executor.
 
@@ -89,6 +90,7 @@ class CrewAgentExecutor(CrewAgentExecutorMixin):
             respect_context_window: Respect context limits.
             request_within_rpm_limit: RPM limit check function.
             callbacks: Optional callbacks list.
+            force_single_tool: Require using the lone tool before finishing.
         """
         self._i18n: I18N = I18N()
         self.llm: BaseLLM = llm
@@ -111,9 +113,11 @@ class CrewAgentExecutor(CrewAgentExecutorMixin):
         self.respect_context_window = respect_context_window
         self.request_within_rpm_limit = request_within_rpm_limit
         self.ask_for_human_input = False
+        self.force_single_tool = force_single_tool
         self.messages: list[dict[str, str]] = []
         self.iterations = 0
         self.log_error_after = 3
+        self._tool_was_used = False
         existing_stop = self.llm.stop or []
         self.llm.stop = list(
             set(
@@ -195,6 +199,19 @@ class CrewAgentExecutor(CrewAgentExecutorMixin):
                 )
                 formatted_answer = process_llm_response(answer, self.use_stop_words)
 
+                if (
+                    self.force_single_tool
+                    and len(self.tools) == 1
+                    and not self._tool_was_used
+                    and isinstance(formatted_answer, AgentFinish)
+                ):
+                    formatted_answer = AgentAction(
+                        thought=formatted_answer.thought,
+                        tool=self.tools[0].name,
+                        tool_input="",
+                        text=formatted_answer.text,
+                    )
+
                 if isinstance(formatted_answer, AgentAction):
                     # Extract agent fingerprint if available
                     fingerprint_context = {}
@@ -221,6 +238,7 @@ class CrewAgentExecutor(CrewAgentExecutorMixin):
                         agent=self.agent,
                         function_calling_llm=self.function_calling_llm,
                     )
+                    self._tool_was_used = True
                     formatted_answer = self._handle_agent_action(
                         formatted_answer, tool_result
                     )
